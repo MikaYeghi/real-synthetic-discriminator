@@ -2,8 +2,9 @@ import os
 import yaml
 import torch
 import argparse
-from yacs.config import CfgNode as CN
 from torch.nn import BCELoss
+from yacs.config import CfgNode as CN
+from sklearn.metrics import accuracy_score
 
 from model_zoo.ResNet101 import ResNet101
 
@@ -77,3 +78,11 @@ def load_state(model, state_path):
         iter_counter = checkpoint['iter_counter']
         logger.info(f"Loaded checkpoint from {state_path}")
         return model, epoch, iter_counter
+    
+def compute_metrics(total_gt, total_preds):
+    accuracy = accuracy_score(total_gt, total_preds)
+    
+    results = {
+        "accuracy": accuracy
+    }
+    return results

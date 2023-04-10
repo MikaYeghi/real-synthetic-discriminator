@@ -1,4 +1,5 @@
 import os
+import torch
 from tqdm import tqdm
 from pathlib import Path
 from torch.optim import Adam
@@ -6,12 +7,34 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from dataset.DiscriminatorDataset import DiscriminatorDataset
-from utils import load_cfg, load_args, load_model, get_loss_fn, make_train_step, save_state, load_state
+from utils import load_cfg, load_args, load_model, get_loss_fn, make_train_step, save_state, load_state, compute_metrics
 
 from logger import get_logger
 logger = get_logger("Train logger")
 
 import pdb
+
+def run_eval(model, val_loader, max_iter):
+    total_preds = torch.empty((0, 1))
+    total_gt = torch.empty((0, 1))
+    max_iter = min(len(val_loader), max_iter)
+    with torch.no_grad():
+        for idx, (images_batch, labels_batch) in enumerate(val_loader):
+            if idx >= max_iter:
+                break
+            
+            model.eval()
+            preds = model(images_batch)
+            
+            # Update the global lists
+            total_preds = torch.cat((total_preds, preds.cpu()))
+            total_gt = torch.cat((total_gt, labels_batch.cpu()))
+    total_preds = (total_preds > 0.5).float()
+    
+    # Compute the metrics
+    results = compute_metrics(total_gt, total_preds)
+    
+    return results
 
 def main(cfg):
     """Load dataset"""
@@ -48,8 +71,16 @@ def main(cfg):
             writer.add_scalar(cfg.LOSS.NAME, loss, iter_counter)
             
             # Save the progress
-            if iter_counter % cfg.SAVE_FREQUENCY == 0 and iter_counter != 0:
+            if iter_counter % cfg.SAVE_FREQ == 0 and iter_counter != 0:
                 save_state(model, epoch, iter_counter, cfg.OUTPUT_DIR, is_final=False)
+            
+            # Run evaluation
+            if iter_counter % cfg.EVAL.FREQ == 0 and iter_counter != 0:
+                results = run_eval(model, val_loader, cfg.EVAL.MAX_ITER)
+                
+                # Log the results of validation
+                for k, v in results.items():
+                    writer.add_scalar(k, v, iter_counter)
             
             iter_counter += 1
             

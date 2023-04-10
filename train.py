@@ -5,6 +5,7 @@ from pathlib import Path
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torch.optim.lr_scheduler import ExponentialLR
 
 from dataset.DiscriminatorDataset import DiscriminatorDataset
 from utils import load_cfg, load_args, load_model, get_loss_fn, make_train_step, save_state, load_state, compute_metrics
@@ -49,10 +50,11 @@ def main(cfg):
     """Model"""
     model = load_model(cfg)
     
-    """Loss function, optimizer, logging"""
+    """Loss function, optimizer, scheduler, logging"""
     Path(cfg.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     loss_fn = get_loss_fn(cfg)
     optimizer = Adam(model.parameters(), lr=cfg.BASE_LR)
+    scheduler = ExponentialLR(optimizer, gamma=cfg.LR_GAMMA)
     writer = SummaryWriter(log_dir=os.path.join(cfg.OUTPUT_DIR, "logs"))
     
     """Training setup"""
@@ -67,9 +69,6 @@ def main(cfg):
             loss = train_step(images_batch, labels_batch)
             loss = loss * cfg.LOSS.COEFFICIENT
             
-            # Log the loss
-            writer.add_scalar(cfg.LOSS.NAME, loss, iter_counter)
-            
             # Save the progress
             if iter_counter % cfg.SAVE_FREQ == 0 and iter_counter != 0:
                 save_state(model, epoch, iter_counter, cfg.OUTPUT_DIR, is_final=False)
@@ -82,7 +81,14 @@ def main(cfg):
                 for k, v in results.items():
                     writer.add_scalar(k, v, iter_counter)
             
+            # Logging
+            writer.add_scalar(cfg.LOSS.NAME, loss, iter_counter)
+            writer.add_scalar("LR", scheduler.get_last_lr()[0], iter_counter)
+            
             iter_counter += 1
+        
+        # LR scheduler step
+        scheduler.step()
             
     # Save the final model
     save_state(model, epoch + 1, iter_counter, cfg.OUTPUT_DIR, is_final=True)

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from dataset.DiscriminatorDataset import DiscriminatorDataset
-from utils import load_cfg, load_args, load_model, get_loss_fn, make_train_step
+from utils import load_cfg, load_args, load_model, get_loss_fn, make_train_step, save_state, load_state
 
 from logger import get_logger
 logger = get_logger("Train logger")
@@ -34,9 +34,9 @@ def main(cfg):
     
     """Training setup"""
     train_step = make_train_step(model, loss_fn, optimizer)
+    model, epoch, iter_counter = load_state(model, cfg.MODEL.WEIGHTS)
     
     """Train"""
-    iter_counter = 0
     for epoch in range(cfg.N_EPOCHS):
         t = tqdm(train_loader, desc=f"Epoch #{epoch + 1}")
         for images_batch, labels_batch in tqdm(train_loader):
@@ -46,8 +46,15 @@ def main(cfg):
             # Log the loss
             writer.add_scalar(cfg.LOSS.NAME, loss, iter_counter)
             
+            # Save the progress
+            if iter_counter % cfg.SAVE_FREQUENCY == 0 and iter_counter != 0:
+                save_state(model, epoch, iter_counter, cfg.OUTPUT_DIR, is_final=False)
+            
             iter_counter += 1
-
+            
+    # Save the final model
+    save_state(model, epoch + 1, iter_counter, cfg.OUTPUT_DIR, is_final=True)
+            
 if __name__ == "__main__":
     args = load_args()
     cfg = load_cfg(args.config_file)

@@ -13,10 +13,10 @@ logger = get_logger("Utils logger")
 import pdb
 
 def make_train_step(model, loss_fn, optimizer):
-    def train_step(images_batch, masks_batch):
+    def train_step(images_batch, labels_batch):
         model.train()
         yhat = model(images_batch)
-        loss = loss_fn(masks_batch, yhat)
+        loss = loss_fn(yhat, labels_batch)
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()

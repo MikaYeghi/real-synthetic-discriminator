@@ -16,12 +16,12 @@ import pdb
 def main(cfg):
     """Load dataset"""
     train_set = DiscriminatorDataset(cfg, mode="train")
-    # val_set = DiscriminatorDataset(cfg, mode="validation")
+    val_set = DiscriminatorDataset(cfg, mode="validation")
     print("-" * 80)
     
     """Create the dataloaders"""
     train_loader = DataLoader(train_set, batch_size=cfg.BATCH_SIZE, shuffle=cfg.SHUFFLE)
-    # val_loader = DataLoader(val_set, batch_size=cfg.BATCH_SIZE, shuffle=cfg.SHUFFLE)
+    val_loader = DataLoader(val_set, batch_size=cfg.BATCH_SIZE, shuffle=cfg.SHUFFLE)
     
     """Model"""
     model = load_model(cfg)
@@ -42,6 +42,7 @@ def main(cfg):
         for images_batch, labels_batch in tqdm(train_loader):
             # Compute the loss
             loss = train_step(images_batch, labels_batch)
+            loss = loss * cfg.LOSS.COEFFICIENT
             
             # Log the loss
             writer.add_scalar(cfg.LOSS.NAME, loss, iter_counter)

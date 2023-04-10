@@ -1,7 +1,10 @@
 import os
 import glob
+import torch
+from PIL import Image
 from random import shuffle
 from torch.utils.data import Dataset
+from torchvision import transforms
 
 from logger import get_logger
 logger = get_logger("Dataset logger")
@@ -9,15 +12,17 @@ logger = get_logger("Dataset logger")
 import pdb
 
 class DiscriminatorDataset(Dataset):
-    def __init__(self, cfg):
+    def __init__(self, cfg, mode="train", device='cuda'):
         super(DiscriminatorDataset, self).__init__()
         
         self.cfg = cfg
-        self.metadata = self.extract_metadata(cfg)
+        self.device = device
+        self.metadata = self.extract_metadata(cfg, mode=mode)
+        self.transforms = self.get_transforms(cfg)
         
-    def extract_metadata(self, cfg):
+    def extract_metadata(self, cfg, mode):
         metadata = []
-        data_path = cfg.DATA_PATH
+        data_path = cfg.TRAIN_PATH if mode == 'train' else cfg.VALIDATION_PATH
         image_format = cfg.IMAGE_FORMAT
         real_images_dir = os.path.join(data_path, "real")
         synthetic_images_dir = os.path.join(data_path, "synthetic")
@@ -40,16 +45,34 @@ class DiscriminatorDataset(Dataset):
                 "category": 1
             }
             metadata.append(metadata_)
-            
-        if cfg.SHUFFLE:
-            shuffle(metadata)
         
-        logger.info(f"Loaded a dataset\n-Real: {len(real_images)}\n-Synthetic: {len(synthetic_images)}\n-Total: {len(metadata)}")
+        logger.info(f"Loaded a {mode} dataset\n-Real: {len(real_images)}\n-Synthetic: {len(synthetic_images)}\n-Total: {len(metadata)}")
         
         return metadata
+    
+    def get_transforms(self, cfg):
+        transform = transforms.Compose([
+            transforms.ToTensor()
+        ])
+        return transform
     
     def __len__(self):
         return len(self.metadata)
     
     def __getitem__(self, idx):
-        pass
+        # Image data
+        data = self.metadata[idx]
+        
+        # Load the image
+        image = Image.open(data['image_path'])
+        
+        # Convert the image to tensor and move to the device
+        image = self.transforms(image).float().to(self.device)
+        
+        # Extract the label
+        label = data['category']
+        
+        # Convert the label to torch tensor
+        label = torch.tensor(label).unsqueeze(0).float().to(self.device)
+        
+        return image, label

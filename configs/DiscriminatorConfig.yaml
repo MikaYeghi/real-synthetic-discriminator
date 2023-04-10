@@ -1,0 +1,3 @@
+DATA_PATH: /home/myeghiaz/Storage/Discriminator/Disc-0.125m-384px/train
+IMAGE_FORMAT: .png
+SHUFFLE: True

@@ -4,7 +4,7 @@ import torch
 import argparse
 from torch.nn import BCELoss
 from yacs.config import CfgNode as CN
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 
 from model_zoo.ResNet101 import ResNet101
 
@@ -80,9 +80,18 @@ def load_state(model, state_path):
         return model, epoch, iter_counter
     
 def compute_metrics(total_gt, total_preds):
+    # Accuracy
     accuracy = accuracy_score(total_gt, total_preds)
     
+    # F1 score of real images
+    f1_real = f1_score(total_gt, total_preds, pos_label=0)
+
+    # F1 score of synthetic images
+    f1_synthetic = f1_score(total_gt, total_preds, pos_label=1)
+    
     results = {
-        "accuracy": accuracy
+        "accuracy": accuracy,
+        "f1-real": f1_real,
+        "f1-synthetic": f1_synthetic
     }
     return results

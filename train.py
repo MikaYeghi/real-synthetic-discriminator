@@ -62,9 +62,10 @@ def main(cfg):
     model, epoch, iter_counter = load_state(model, cfg.MODEL.WEIGHTS)
     
     """Train"""
+    logger.info("Start training")
     for epoch in range(cfg.N_EPOCHS):
         t = tqdm(train_loader, desc=f"Epoch #{epoch + 1}")
-        for images_batch, labels_batch in tqdm(train_loader):
+        for images_batch, labels_batch in t:
             # Compute the loss
             loss = train_step(images_batch, labels_batch)
             loss = loss * cfg.LOSS.COEFFICIENT
@@ -86,6 +87,8 @@ def main(cfg):
             writer.add_scalar("LR", scheduler.get_last_lr()[0], iter_counter)
             
             iter_counter += 1
+            
+            t.set_description(f"Epoch #{epoch + 1}")
         
         # LR scheduler step
         scheduler.step()
